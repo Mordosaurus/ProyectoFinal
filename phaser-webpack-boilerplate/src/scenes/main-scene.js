@@ -83,15 +83,20 @@ class Projectile extends Phaser.GameObjects.Image {
     this.speed = Phaser.Math.GetSpeed(600, 1);
   }
 
+
   fire(x, y) {
     this.setVisible(true);
     this.setActive(true);
     this.setPosition(x, y - 20);
+    this.body.velocity.y = -1500; // Velocidad Del Proyectil
   }
 
   update(time, delta) {
     this.y -= this.speed * delta;
+    
 
+    
+    // Ocultar proyectil al salir de la pantalla
     if (this.y < 0) {
       this.setVisible(false);
       this.setActive(false);
