@@ -2,6 +2,9 @@ export default class GameScene extends Phaser.Scene {
   constructor(config) {
     super(config);
     this.config = config;
+    this.enemySpeedIncrement = 10;
+    this.currentWave = 1;
+    this.enemySpeedMultiplier = 1;
     this.tank = null;
     this.projectiles = null;
     this.enemyProjectiles = null;
@@ -20,6 +23,8 @@ export default class GameScene extends Phaser.Scene {
     this.restartCountdownTimer = null;
     this.restartCountdownText = null;
     this.restartDelay = 5000;
+    this.score = 0; // Score variable
+    this.scoreText = null; // Score text
   }
 
   preload() {
@@ -33,6 +38,11 @@ export default class GameScene extends Phaser.Scene {
 
   create() {
     this.add.image(0, 0, "sky").setOrigin(0);
+
+    this.scoreText = this.add.text(10, 10, "Score: 0", {
+      fontSize: "24px",
+      fill: "#fff",
+    }); // Create score text
 
     this.tank = this.physics.add.sprite(this.config.width / 2, this.config.height - 50, "tank");
     this.tank.setScale(0.1);
@@ -51,12 +61,86 @@ export default class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.enemyProjectiles, this.tank, this.projectileHitTank, null, this);
     this.physics.add.collider(this.enemies, this.tank, this.enemyHitTank, null, this);
 
-    const pauseButton = this.add.image(this.config.width - 50, 50, "pauseButton");
-    pauseButton.setInteractive();
-    pauseButton.on("pointerdown", () => {
-      this.scene.pause();
-    });
+    // Agregar botón para iniciar el juego
+    const startButton = this.add.text(this.config.width / 2, this.config.height / 2, "Empezar juego", {
+      fontSize: "32px",
+      fill: "#fff",
+    })
+      .setOrigin(0.5)
+      .setInteractive();
+    startButton.on("pointerup", this.startGame, this);
   }
+
+  startGame() {
+    // Eliminar el botón de inicio y comenzar el juego
+    this.scene.start();
+  }
+
+pause() {
+    this.physics.pause();
+    this.isPaused = true;
+    this.pauseButton.setVisible(false);
+    //Toroshiro
+
+    const continueButtonCallbacks = {
+      onClick: this.resume,
+      onMouseEnter: text => text.setFill("#0F0"),
+      onMouseExit: text => text.setFill("#FFF"),
+    };
+
+    const quitButtonCallbacks = {
+      onClick: this.quitGame,
+      onMouseEnter: text => text.setFill("#F00"),
+      onMouseExit: text => text.setFill("#FFF"),
+    };
+
+    const pauseMenu = {
+      items: [
+        { label: "Continue", style: { fontSize: "32px", fill: "#FFF" }, ...continueButtonCallbacks },
+        { label: "Quit", style: { fontSize: "32px", fill: "#FFF" }, ...quitButtonCallbacks },
+      ],
+      firstItemPosition: { x: this.config.width / 2, y: this.config.height / 2 }, // Corregir aquí
+      origin: { x: 0.5, y: 0.5 },
+      spacing: 45
+    };
+    
+    
+
+    this.showMenu(pauseMenu);
+  }
+
+  resume() {
+    this.physics.resume();
+    this.isPaused = false;
+    this.pauseButton.setVisible(true);
+    this.hideMenu();
+
+  }
+
+  quitGame() {
+    this.score = 0;
+    this.scene.restart();
+  
+
+    
+
+    //Toromal
+}
+
+showMenu(menu) {
+  let yPos = menu.firstItemPosition.y;
+  this.activeMenu = this.add.group();
+  menu.items.forEach(item => {
+      const textObject = this.add.text(menu.firstItemPosition.x, yPos, item.label, item.style)
+      .setOrigin(menu.origin.x, menu.origin.y)
+      .setInteractive();
+      yPos += menu.spacing;
+      textObject.on("pointerup", item.onClick, this)
+      textObject.on("pointerover", ()=> {item.onMouseEnter(textObject)}, this);
+      textObject.on("pointerover", ()=> {item.onMouseExit(textObject)}, this);
+      this.activeMenu.add(textObject);
+});
+}
 
   createEnemies() {
     const enemyX = 100;
@@ -73,6 +157,40 @@ export default class GameScene extends Phaser.Scene {
       }
     }
   }
+
+  checkEnemyWave() {
+    if (this.enemies.countActive() === 0) {
+      this.createNextWave();
+      this.currentWave += 1;
+      this.enemySpeedMultiplier += 0.8; // Incrementar el multiplicador de velocidad
+    }
+  }
+  
+  
+  
+  
+
+  createNextWave() {
+    const enemyX = 100;
+    const enemyY = 100; // Cambiar las coordenadas de la siguiente oleada
+    const enemySpacing = 80;
+  
+    for (let i = 0; i < 6; i++) {
+      for (let j = 0; j < 4; j++) {
+        let enemy = this.physics.add.sprite(enemyX + i * enemySpacing, enemyY + j * enemySpacing, "enemy");
+        enemy.setScale(0.05);
+        enemy.body.allowGravity = false;
+        enemy.setCollideWorldBounds(true);
+        this.enemies.add(enemy);
+      }
+    }
+  
+    // Incrementar la velocidad de los enemigos por el multiplicador
+    this.enemySpeed *= this.enemySpeedMultiplier;
+  }
+  
+  
+  
 
   createKeyboardControls() {
     const cursors = this.input.keyboard.createCursorKeys();
@@ -122,9 +240,9 @@ export default class GameScene extends Phaser.Scene {
     this.projectiles.add(projectile);
     projectile.body.velocity.y = -500;
     const randomEnemy = Phaser.Utils.Array.GetRandom(this.enemies.getChildren());
-  const enemyProjectile = this.physics.add.sprite(randomEnemy.x, randomEnemy.y + 20, "enemyProjectile");
-  enemyProjectile.setScale(0.1);
-  this.enemyProjectiles.add(enemyProjectile); // Add enemy projectile to the 'enemyProjectiles' group
+    //const enemyProjectile = this.physics.add.sprite(randomEnemy.x, randomEnemy.y + 20, "enemyProjectile");
+    //enemyProjectile.setScale(0.1);
+    //this.enemyProjectiles.add(enemyProjectile); // Add enemy projectile to the 'enemyProjectiles' group
 
     projectile.body.onWorldBounds = true;
     this.physics.world.on("worldbounds", (body) => {
@@ -189,15 +307,20 @@ export default class GameScene extends Phaser.Scene {
 
   startEnemyShooting() {
     this.time.addEvent({
-      delay: Phaser.Math.Between(2000, 5000),
+      delay: Phaser.Math.Between(2000, 5000) / this.enemySpeedMultiplier, // Dividir el retraso por el multiplicador
       loop: true,
       callback: () => {
         this.enemyFireProjectile();
       },
     });
   }
+  
 
   enemyFireProjectile() {
+    if (this.enemies.getLength() === 0) {
+      return; // No hay enemigos, salir de la función
+    }
+  
     const randomEnemy = Phaser.Utils.Array.GetRandom(this.enemies.getChildren());
     const enemyProjectile = this.physics.add.sprite(randomEnemy.x, randomEnemy.y + 20, "enemyProjectile");
     enemyProjectile.setScale(0.1);
@@ -205,6 +328,7 @@ export default class GameScene extends Phaser.Scene {
     enemyProjectile.body.velocity.y = this.enemyProjectileSpeed;
   
     this.physics.add.collider(enemyProjectile, this.tank, this.projectileHitTank, null, this);
+  
   }
 
   projectileHitTank(projectile, tank) {
@@ -216,25 +340,29 @@ export default class GameScene extends Phaser.Scene {
   projectileHitEnemy(projectile, enemy) {
     projectile.destroy();
     enemy.destroy();
+    this.updateScore();
+  
+    this.checkEnemyWave(); // Verificar si es necesario crear la segunda oleada
   }
+  
 
   enemyHitTank() {
     this.gameOver();
   }
 
   gameOver() {
-    this.scene.pause();
-    this.gameOverText = this.add.text(this.config.width / 2, this.config.height / 2, "¡Has perdido!", {
-      fontSize: "32px",
-      fill: "#fff",
-    }).setOrigin(0.5);
+    //this.scene.pause();
+    
     this.restartCountdownText = this.add.text(this.config.width / 2, this.config.height / 2 + 50, "", {
       fontSize: "24px",
       fill: "#fff",
     }).setOrigin(0.5);
 
+    
+
     this.gameOverTimer = this.time.delayedCall(this.restartDelay, () => {
-      this.restartGame();
+      this.restartGame(); 
+      console.log("a ver si si jala")
     });
 
     this.restartCountdownTimer = this.time.addEvent({
@@ -251,6 +379,22 @@ export default class GameScene extends Phaser.Scene {
   }
 
   restartGame() {
-    this.scene.restart();
+    this.time.delayedCall(this.restartDelay, () => {
+      this.scene.restart();
+    });
+  }
+  
+
+  updateScore() {
+    if (!this.scoreText) {
+      this.scoreText = this.add.text(10, 10, "Score: 0", {
+        fontSize: "24px",
+        fill: "#fff",
+      });
+      this.score = 0;
+    }
+
+    this.score += 1;
+    this.scoreText.setText(`Score: ${this.score}`);
   }
 }
